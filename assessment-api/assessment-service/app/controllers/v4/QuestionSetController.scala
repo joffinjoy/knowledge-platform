@@ -111,7 +111,7 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 	def updateHierarchy() = Action.async { implicit request =>
 		val headers = commonHeaders()
 		val body = requestBody()
-		val data = body.getOrDefault("data", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]]
+		val data = body.getOrDefault("data!", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]]
 		data.putAll(headers)
 		val questionSetRequest = getRequest(data, headers, "updateHierarchy")
 		setRequestContext(questionSetRequest, version, objectType, schemaName)

@@ -549,11 +549,37 @@
     "rejectComment": {
       "type": "string"
     },
+    "showRemarks": {
+      "type": "string",
+      "enum": [
+        "Yes",
+        "No"
+      ]
+    },
+    "remarks": {
+      "type": "object"
+    },
+    "showEvidence": {
+      "type": "string",
+      "enum": [
+        "Yes",
+        "No"
+      ]
+    },
+    "evidence": {
+      "type": "object"
+    },
     "accessibility": {
       "type": "array",
       "items": {
           "type": "object"
       }
+    },
+    "origin": {
+      "type": "string"
+    },
+    "originData": {
+      "type": "object"
     }
   },
   "additionalProperties": false

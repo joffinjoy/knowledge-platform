@@ -16,9 +16,11 @@ import org.sunbird.utils.AssessmentConstants
 
 import java.util
 import java.util.UUID
-import java.util.concurrent.CompletionException
+import java.util.concurrent.{CompletionException, TimeUnit}
+import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 object CopyManager {
 
@@ -36,9 +38,10 @@ object CopyManager {
           node.setOutRelations(null)
           validateShallowCopyReq(node, request)
           copyQuestionSet(node, request)
-        case AssessmentConstants.QUESTION_MIME_TYPE => //Add mime type
+        case AssessmentConstants.QUESTION_MIME_TYPE =>
           node.setInRelations(null)
-          copyQuestion(node, request)
+          validateCopyQuestionReq(request, node) //Check if the question has got "Default" visibility.
+          copyNode(node, request)
       }
       copiedNodeFuture.map(copiedNode => {
         val response = ResponseHandler.OK()
@@ -53,6 +56,13 @@ object CopyManager {
     }).flatMap(f => f) recoverWith { case e: CompletionException => throw e.getCause }
   }
 
+  def validateCopyQuestionReq(request: Request, node: Node) = {
+    val visibility = node.getMetadata.getOrDefault(AssessmentConstants.VISIBILITY, AssessmentConstants.VISIBILITY_PARENT).asInstanceOf[String]
+    if (StringUtils.equalsIgnoreCase(visibility, AssessmentConstants.VISIBILITY_PARENT)) {
+      throw new ClientException(AssessmentConstants.ERR_INVALID_REQUEST, "Question With Visibility Parent Cannot Be Copied Individually!")
+    }
+  }
+
   def validateExistingNode(request: Request, node: Node) = {
     val requestObjectType = request.getObjectType
     val nodeObjectType = node.getObjectType
@@ -63,7 +73,7 @@ object CopyManager {
 
   def copyQuestionSet(originNode: Node, request: Request)(implicit ex: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
     val copyType = request.getRequest.get(AssessmentConstants.COPY_TYPE).asInstanceOf[String]
-    copyQuestion(originNode, request).map(node => {
+    copyNode(originNode, request).map(node => {
       val req = new Request(request)
       req.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
       req.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
@@ -79,7 +89,8 @@ object CopyManager {
     }).flatMap(f => f) recoverWith { case e: CompletionException => throw e.getCause }
   }
 
-  def copyQuestion(node: Node, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+
+  def copyNode(node: Node, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
     val copyCreateReq: Future[Request] = getCopyRequest(node, request)
     copyCreateReq.map(req => {
       DataNode.create(req).map(copiedNode => {
@@ -97,7 +108,7 @@ object CopyManager {
     UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => node)
   }
 
-  def prepareHierarchyRequest(originHierarchy: util.Map[String, AnyRef], originNode: Node, node: Node, copyType: String, request: Request): util.HashMap[String, AnyRef] = {
+  def prepareHierarchyRequest(originHierarchy: util.Map[String, AnyRef], originNode: Node, node: Node, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): util.HashMap[String, AnyRef] = {
     val children: util.List[util.Map[String, AnyRef]] = originHierarchy.get("children").asInstanceOf[util.List[util.Map[String, AnyRef]]]
     if (null != children && !children.isEmpty) {
       val nodesModified = new util.HashMap[String, AnyRef]()
@@ -119,9 +130,36 @@ object CopyManager {
     } else new util.HashMap[String, AnyRef]()
   }
 
-  def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request): Unit = {
+  def getMetadataWithExternalData(childIdentifier: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext) = {
+    val objectType = "Question"
+    val schemaName: String = "question"
+    val version = "1.0"
+
+    val questionRequest = new Request();
+    questionRequest.put("fields", java.util.Arrays.asList("answer", "body", "editorState", "hints", "instructions", "interactions", "media", "responseDeclaration", "solutions"))
+    questionRequest.put("identifier", childIdentifier)
+    questionRequest.put("mode", "read")
+    questionRequest.setOperation("readQuestion")
+    questionRequest.setObjectType(objectType)
+    questionRequest.setContext(new java.util.HashMap[String, AnyRef]() {
+      {
+        put("graph_id", "domain")
+        put("version", version)
+        put("objectType", objectType)
+        put("schemaName", schemaName)
+      }
+    })
+    DataNode.read(questionRequest).map(node => {
+      node.getMetadata
+    })
+  }
+
+  def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
     if (null != children && !children.isEmpty) {
       children.asScala.toList.foreach(child => {
+        val childIdentifier = child.getOrDefault(AssessmentConstants.IDENTIFIER, "")
+        val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
+        val childMetadataWithExternalData = Await.result(getMetadataWithExternalData(childIdentifier.asInstanceOf[String]), maxWaitTime)
         //TODO: Change the behavior for public question belonging to same creator.
         val id = if ("Parent".equalsIgnoreCase(child.get(AssessmentConstants.VISIBILITY).asInstanceOf[String])) {
           val identifier = UUID.randomUUID().toString
@@ -130,6 +168,7 @@ object CopyManager {
               put(AssessmentConstants.METADATA, cleanUpCopiedData(new util.HashMap[String, AnyRef]() {
                 {
                   putAll(child)
+                  putAll(childMetadataWithExternalData)
                   put(AssessmentConstants.CHILDREN, new util.ArrayList())
                   internalHierarchyProps.map(key => remove(key))
                 }
@@ -191,27 +230,29 @@ object CopyManager {
     req.setRequest(metadata)
 
 
-    val graphId = request.getContext.getOrDefault("graph_id","").asInstanceOf[String]
-    val version = request.getContext.getOrDefault("version","").asInstanceOf[String]
+    val graphId = request.getContext.getOrDefault("graph_id", "").asInstanceOf[String]
+    val version = request.getContext.getOrDefault("version", "").asInstanceOf[String]
     val schemaName = AssessmentConstants.QUESTION_SCHEMA_NAME
-    val externalProps = DefinitionNode.getExternalProps(graphId,version,schemaName)
-    val objectProps = List("editorState","solutions","instructions","hints","media","responseDeclaration","interactions")
+    val externalProps = if (StringUtils.equalsIgnoreCase(AssessmentConstants.QUESTIONSET_MIME_TYPE, node.getMetadata.getOrDefault("mimeType", "").asInstanceOf[String])) {
+      DefinitionNode.getExternalProps(graphId, version, schemaName).diff(List("hierarchy"))
+    } else {
+      DefinitionNode.getExternalProps(graphId, version, schemaName)
+    }
     val readReq = new Request()
     readReq.setContext(request.getContext)
     readReq.put("identifier", node.getIdentifier)
     readReq.put("fields", externalProps.asJava)
-    DataNode.read(readReq).map(node => {
-      val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, externalProps.asJava, node.getObjectType.toLowerCase.replace("image", ""), request.getContext.get("version").asInstanceOf[String])
-      //req.put("body",metadata.getOrDefault("body","default body"))
-      //req.put("responseDeclaration",metadata.getOrDefault("responseDeclaration",{}.asInstanceOf[AnyRef]))
-      //val metaDataScalaMap = metadata.asScala
-      externalProps.foreach(prop =>{
-        val propValue = metadata.get(prop)
-        if(metadata.containsKey(prop) && propValue!=null){
-          req.put(prop, propValue)
-        }
-      })
-    })
+    val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
+    Await.result(
+      DataNode.read(readReq).map(node => {
+        val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, externalProps.asJava, node.getObjectType.toLowerCase.replace("image", ""), request.getContext.get("version").asInstanceOf[String])
+        externalProps.foreach(prop => {
+          val propValue = metadata.get(prop)
+          if (metadata.containsKey(prop) && propValue != null) {
+            req.put(prop, propValue)
+          }
+        })
+      }), maxWaitTime)
     Future(req)
   }
 

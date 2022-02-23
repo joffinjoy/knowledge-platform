@@ -141,6 +141,6 @@ class QuestionController @Inject()(@Named(ActorNames.QUESTION_ACTOR) questionAct
 		question.putAll(Map("identifier" -> identifier, "mode" -> mode.getOrElse(""), "copyType" -> AssessmentConstants.COPY_TYPE_DEEP).asJava)
 		val questionRequest = getRequest(question, headers, QuestionOperations.copyQuestion.toString)
 		setRequestContext(questionRequest, version, objectType, schemaName)
-		getResult(ApiId.COPY_QUESTION_SET, questionActor, questionRequest)
+		getResult(ApiId.COPY_QUESTION, questionActor, questionRequest)
 	}
 }

@@ -134,16 +134,18 @@ object CopyManager {
     val objectType = "Question"
     val schemaName: String = "question"
     val version = "1.0"
+    val graphId = "domain"
 
     val questionRequest = new Request();
-    questionRequest.put("fields", java.util.Arrays.asList("answer", "body", "editorState", "hints", "instructions", "interactions", "media", "responseDeclaration", "solutions"))
+    val externalProps = DefinitionNode.getExternalProps(graphId, version, schemaName)
+    questionRequest.put("fields", externalProps.asJava)
     questionRequest.put("identifier", childIdentifier)
     questionRequest.put("mode", "read")
     questionRequest.setOperation("readQuestion")
     questionRequest.setObjectType(objectType)
     questionRequest.setContext(new java.util.HashMap[String, AnyRef]() {
       {
-        put("graph_id", "domain")
+        put("graph_id", graphId)
         put("version", version)
         put("objectType", objectType)
         put("schemaName", schemaName)
@@ -157,9 +159,15 @@ object CopyManager {
   def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
     if (null != children && !children.isEmpty) {
       children.asScala.toList.foreach(child => {
-        val childIdentifier = child.getOrDefault(AssessmentConstants.IDENTIFIER, "")
-        val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
-        val childMetadataWithExternalData = Await.result(getMetadataWithExternalData(childIdentifier.asInstanceOf[String]), maxWaitTime)
+        val childMetadataWithExternalData = if (StringUtils.equalsIgnoreCase(child.getOrDefault(AssessmentConstants.MIME_TYPE, "").asInstanceOf[String], AssessmentConstants.QUESTION_MIME_TYPE)
+          && StringUtils.equalsIgnoreCase(child.getOrDefault(AssessmentConstants.VISIBILITY, "").asInstanceOf[String], AssessmentConstants.VISIBILITY_PARENT)) {
+          val childIdentifier = child.getOrDefault(AssessmentConstants.IDENTIFIER, "")
+          val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
+          Await.result(getMetadataWithExternalData(childIdentifier.asInstanceOf[String]), maxWaitTime)
+        } else {
+          java.util.Collections.emptyMap[String, AnyRef]()
+        }
+
         //TODO: Change the behavior for public question belonging to same creator.
         val id = if ("Parent".equalsIgnoreCase(child.get(AssessmentConstants.VISIBILITY).asInstanceOf[String])) {
           val identifier = UUID.randomUUID().toString
@@ -232,11 +240,10 @@ object CopyManager {
 
     val graphId = request.getContext.getOrDefault("graph_id", "").asInstanceOf[String]
     val version = request.getContext.getOrDefault("version", "").asInstanceOf[String]
-    val schemaName = AssessmentConstants.QUESTION_SCHEMA_NAME
     val externalProps = if (StringUtils.equalsIgnoreCase(AssessmentConstants.QUESTIONSET_MIME_TYPE, node.getMetadata.getOrDefault("mimeType", "").asInstanceOf[String])) {
-      DefinitionNode.getExternalProps(graphId, version, schemaName).diff(List("hierarchy"))
+      DefinitionNode.getExternalProps(graphId, version, AssessmentConstants.QUESTIONSET_SCHEMA_NAME).diff(List("hierarchy"))
     } else {
-      DefinitionNode.getExternalProps(graphId, version, schemaName)
+      DefinitionNode.getExternalProps(graphId, version, AssessmentConstants.QUESTION_SCHEMA_NAME)
     }
     val readReq = new Request()
     readReq.setContext(request.getContext)

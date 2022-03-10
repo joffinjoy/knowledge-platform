@@ -5,7 +5,7 @@ import org.apache.commons.collections4.MapUtils
 import org.apache.commons.lang.StringUtils
 import org.sunbird.common.Platform
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
-import org.sunbird.common.exception.ClientException
+import org.sunbird.common.exception.{ClientException, ServerException}
 import org.sunbird.graph.OntologyEngineContext
 import org.sunbird.graph.common.Identifier
 import org.sunbird.graph.dac.model.Node
@@ -13,10 +13,12 @@ import org.sunbird.graph.nodes.DataNode
 import org.sunbird.graph.schema.DefinitionNode
 import org.sunbird.graph.utils.{NodeUtil, ScalaJsonUtils}
 import org.sunbird.utils.AssessmentConstants
-
 import java.util
-import java.util.UUID
+import java.util.{Optional, UUID}
 import java.util.concurrent.{CompletionException, TimeUnit}
+
+import org.sunbird.telemetry.logger.TelemetryManager
+
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -75,8 +77,6 @@ object CopyManager {
     val copyType = request.getRequest.get(AssessmentConstants.COPY_TYPE).asInstanceOf[String]
     copyNode(originNode, request).map(node => {
       val req = new Request(request)
-      req.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
-      req.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
       req.put(AssessmentConstants.ROOT_ID, request.get(AssessmentConstants.IDENTIFIER))
       req.put(AssessmentConstants.MODE, request.get(AssessmentConstants.MODE))
       HierarchyManager.getHierarchy(req).map(response => {
@@ -100,19 +100,26 @@ object CopyManager {
   }
 
   def updateHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef], copyType: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
-    val updateHierarchyRequest = prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request)
-    val hierarchyRequest = new Request(request)
-    hierarchyRequest.putAll(updateHierarchyRequest)
-    hierarchyRequest.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
-    hierarchyRequest.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
-    UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => node)
+    prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request).map(req => {
+     val hierarchyRequest = new Request(request)
+     hierarchyRequest.putAll(req)
+     hierarchyRequest.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
+     hierarchyRequest.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
+      UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => {
+        if(!ResponseHandler.checkError(response)) node else {
+          TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is : "+response)
+          throw new ServerException("ERR_QUESTIONSET_COPY", "Something Went Wrong, Please Try Again")
+        }
+      })
+    }).flatMap(f=>f)
   }
 
-  def prepareHierarchyRequest(originHierarchy: util.Map[String, AnyRef], originNode: Node, node: Node, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): util.HashMap[String, AnyRef] = {
+  def prepareHierarchyRequest(originHierarchy: util.Map[String, AnyRef], originNode: Node, node: Node, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[util.Map[String, AnyRef]] = {
     val children: util.List[util.Map[String, AnyRef]] = originHierarchy.get("children").asInstanceOf[util.List[util.Map[String, AnyRef]]]
     if (null != children && !children.isEmpty) {
       val nodesModified = new util.HashMap[String, AnyRef]()
       val hierarchy = new util.HashMap[String, AnyRef]()
+      val idMap = new util.HashMap[String, String]()
       hierarchy.put(node.getIdentifier, new util.HashMap[String, AnyRef]() {
         {
           put(AssessmentConstants.CHILDREN, new util.ArrayList[String]())
@@ -120,55 +127,41 @@ object CopyManager {
           put(AssessmentConstants.PRIMARY_CATEGORY, node.getMetadata.get(AssessmentConstants.PRIMARY_CATEGORY))
         }
       })
-      populateHierarchyRequest(children, nodesModified, hierarchy, node.getIdentifier, copyType, request)
-      new util.HashMap[String, AnyRef]() {
-        {
-          put(AssessmentConstants.NODES_MODIFIED, nodesModified)
-          put(AssessmentConstants.HIERARCHY, hierarchy)
+      populateHierarchyRequest(children, nodesModified, hierarchy, node.getIdentifier, copyType, request, idMap)
+      getExternalData(idMap.keySet().asScala.toList, request).map(exData => {
+        idMap.asScala.toMap.foreach(entry => {
+          nodesModified.get(entry._2).asInstanceOf[java.util.Map[String, AnyRef]].get("metadata").asInstanceOf[util.Map[String, AnyRef]].putAll(exData.getOrDefault(entry._1, new util.HashMap[String, AnyRef]()).asInstanceOf[util.Map[String, AnyRef]])
+        })
+        new util.HashMap[String, AnyRef]() {
+          {
+            put(AssessmentConstants.NODES_MODIFIED, nodesModified)
+            put(AssessmentConstants.HIERARCHY, hierarchy)
+          }
         }
-      }
-    } else new util.HashMap[String, AnyRef]()
+      })
+
+    } else Future(new util.HashMap[String, AnyRef]())
   }
 
-  def getMetadataWithExternalData(childIdentifier: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext) = {
-    val objectType = "Question"
-    val schemaName: String = "question"
-    val version = "1.0"
-    val graphId = "domain"
-
-    val questionRequest = new Request();
-    val externalProps = DefinitionNode.getExternalProps(graphId, version, schemaName)
-    questionRequest.put("fields", externalProps.asJava)
-    questionRequest.put("identifier", childIdentifier)
-    questionRequest.put("mode", "read")
-    questionRequest.setOperation("readQuestion")
-    questionRequest.setObjectType(objectType)
-    questionRequest.setContext(new java.util.HashMap[String, AnyRef]() {
-      {
-        put("graph_id", graphId)
-        put("version", version)
-        put("objectType", objectType)
-        put("schemaName", schemaName)
-      }
-    })
-    DataNode.read(questionRequest).map(node => {
-      node.getMetadata
+  def getExternalData(identifiers: List[String], request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[util.Map[String, AnyRef]] = {
+    val req = new Request(request)
+    req.getContext().putAll(Map("objectType" -> "Question", "schemaName" -> "question").asJava)
+    req.put("identifiers", identifiers)
+    val result = new util.HashMap[String, AnyRef]()
+    val externalProps = DefinitionNode.getExternalProps(req.getContext.getOrDefault("graph_id", "domain").asInstanceOf[String], req.getContext.getOrDefault("version", "1.0").asInstanceOf[String], req.toLowerCase())
+    val externalPropsResponse = oec.graphService.readExternalProps(request, externalProps)
+    externalPropsResponse.map(response => {
+      identifiers.map(id => {
+        val externalData = Optional.ofNullable(response.get(id).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+        result.put(id, externalData)
+      })
+      result
     })
   }
 
-  def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
+  def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request, idMap: java.util.Map[String, String])(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
     if (null != children && !children.isEmpty) {
       children.asScala.toList.foreach(child => {
-        val childMetadataWithExternalData = if (StringUtils.equalsIgnoreCase(child.getOrDefault(AssessmentConstants.MIME_TYPE, "").asInstanceOf[String], AssessmentConstants.QUESTION_MIME_TYPE)
-          && StringUtils.equalsIgnoreCase(child.getOrDefault(AssessmentConstants.VISIBILITY, "").asInstanceOf[String], AssessmentConstants.VISIBILITY_PARENT)) {
-          val childIdentifier = child.getOrDefault(AssessmentConstants.IDENTIFIER, "")
-          val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
-          Await.result(getMetadataWithExternalData(childIdentifier.asInstanceOf[String]), maxWaitTime)
-        } else {
-          java.util.Collections.emptyMap[String, AnyRef]()
-        }
-
-        //TODO: Change the behavior for public question belonging to same creator.
         val id = if ("Parent".equalsIgnoreCase(child.get(AssessmentConstants.VISIBILITY).asInstanceOf[String])) {
           val identifier = UUID.randomUUID().toString
           nodesModified.put(identifier, new util.HashMap[String, AnyRef]() {
@@ -176,7 +169,6 @@ object CopyManager {
               put(AssessmentConstants.METADATA, cleanUpCopiedData(new util.HashMap[String, AnyRef]() {
                 {
                   putAll(child)
-                  putAll(childMetadataWithExternalData)
                   put(AssessmentConstants.CHILDREN, new util.ArrayList())
                   internalHierarchyProps.map(key => remove(key))
                 }
@@ -187,6 +179,8 @@ object CopyManager {
               put("setDefaultValue", false.asInstanceOf[AnyRef])
             }
           })
+          if(StringUtils.equalsIgnoreCase(AssessmentConstants.QUESTION_MIME_TYPE, child.getOrDefault("mimeType","").asInstanceOf[String]))
+            idMap.put(child.getOrDefault("identifier","").asInstanceOf[String], identifier)
           identifier
         } else
           child.get(AssessmentConstants.IDENTIFIER).asInstanceOf[String]
@@ -199,7 +193,7 @@ object CopyManager {
             }
           })
         hierarchy.get(parentId).asInstanceOf[util.Map[String, AnyRef]].get(AssessmentConstants.CHILDREN).asInstanceOf[util.List[String]].add(id)
-        populateHierarchyRequest(child.get(AssessmentConstants.CHILDREN).asInstanceOf[util.List[util.Map[String, AnyRef]]], nodesModified, hierarchy, id, copyType, request)
+        populateHierarchyRequest(child.get(AssessmentConstants.CHILDREN).asInstanceOf[util.List[util.Map[String, AnyRef]]], nodesModified, hierarchy, id, copyType, request, idMap)
       })
     }
   }

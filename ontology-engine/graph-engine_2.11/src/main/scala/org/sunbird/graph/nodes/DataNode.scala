@@ -25,7 +25,8 @@ object DataNode {
 
     @throws[Exception]
     def create(request: Request, dataModifier: (Node) => Node = defaultDataModifier)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Node] = {
-        DefinitionNode.validate(request).map(node => {
+        println("DataNode.create")
+      DefinitionNode.validate(request).map(node => {
             val response = oec.graphService.addNode(request.graphId, dataModifier(node))
             response.map(node => DefinitionNode.postProcessor(request, node)).map(result => {
                 val futureList = Task.parallel[Response](
@@ -53,6 +54,7 @@ object DataNode {
 
     @throws[Exception]
     def read(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Node] = {
+      println("DataNode.read")
         DefinitionNode.getNode(request).map(node => {
             val schema = node.getObjectType.toLowerCase.replace("image", "")
             val objectType : String = request.getContext.get("objectType").asInstanceOf[String]

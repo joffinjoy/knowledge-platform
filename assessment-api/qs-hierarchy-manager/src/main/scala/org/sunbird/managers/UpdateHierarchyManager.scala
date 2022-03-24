@@ -31,7 +31,9 @@ object UpdateHierarchyManager {
         val (nodesModified, hierarchy) = validateRequest(request)
         val rootId: String = getRootId(nodesModified, hierarchy)
         request.getContext.put(HierarchyConstants.ROOT_ID, rootId)
+        println("BEFORE GET VALIDATED ROOTNODE")
         getValidatedRootNode(rootId, request).map(node => {
+            println("AFTER GET VALIDATED ROOTNODE")
             getExistingHierarchy(request, node).map(existingHierarchy => {
                 val existingChildren = existingHierarchy.getOrElse(HierarchyConstants.CHILDREN, new java.util.ArrayList[java.util.HashMap[String, AnyRef]]()).asInstanceOf[java.util.List[java.util.Map[String, AnyRef]]]
                 val nodes = List(node)

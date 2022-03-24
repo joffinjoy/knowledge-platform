@@ -18,19 +18,24 @@ import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext
 
 object NodeUtil {
+    println("REACHED HERE")
     val mapper: ObjectMapper = new ObjectMapper()
     mapper.registerModule(DefaultScalaModule)
+    println("REACHED HERE TOO")
 
     def serialize(node: Node, fields: util.List[String], schemaName: String, schemaVersion: String, withoutRelations: Boolean = false)(implicit oec: OntologyEngineContext, ec: ExecutionContext): util.Map[String, AnyRef] = {
+        println("NodeUtil.serialize")
         val metadataMap = node.getMetadata
         val objectCategoryDefinition: ObjectCategoryDefinition = DefinitionNode.getObjectCategoryDefinition(node.getMetadata.getOrDefault("primaryCategory", "").asInstanceOf[String], node.getObjectType.toLowerCase().replace("image", ""), node.getMetadata.getOrDefault("channel","all").asInstanceOf[String])
         val jsonProps = DefinitionNode.fetchJsonProps(node.getGraphId, schemaVersion, node.getObjectType.toLowerCase().replace("image", ""), objectCategoryDefinition)
-        val updatedMetadataMap:util.Map[String, AnyRef] = metadataMap.entrySet().asScala.filter(entry => null != entry.getValue).map((entry: util.Map.Entry[String, AnyRef]) => handleKeyNames(entry, fields) ->  convertJsonProperties(entry, jsonProps)).toMap.asJava
+      println("REACHED AFTER FETCH JSON PROPS")
+      val updatedMetadataMap:util.Map[String, AnyRef] = metadataMap.entrySet().asScala.filter(entry => null != entry.getValue).map((entry: util.Map.Entry[String, AnyRef]) => handleKeyNames(entry, fields) ->  convertJsonProperties(entry, jsonProps)).toMap.asJava
         val definitionMap = DefinitionNode.getRelationDefinitionMap(node.getGraphId, schemaVersion, node.getObjectType.toLowerCase().replace("image", ""), objectCategoryDefinition).asJava
         val finalMetadata = new util.HashMap[String, AnyRef]()
         finalMetadata.put("objectType",node.getObjectType)
         finalMetadata.putAll(updatedMetadataMap)
-        if(!withoutRelations){
+
+      if(!withoutRelations){
             val relMap:util.Map[String, util.List[util.Map[String, AnyRef]]] = getRelationMap(node, updatedMetadataMap, definitionMap)
             finalMetadata.putAll(relMap)
         }

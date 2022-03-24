@@ -29,8 +29,10 @@ object CopyManager {
   private val metadataNotTobeCopied = Platform.config.getStringList("assessment.copy.props_to_remove")
 
   def copy(request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Response] = {
+    println("COPY")
     validateRequest(request)
     DataNode.read(request).map(node => {
+      println("NODE :"+node.getMetadata)
       validateExistingNode(request, node)
       val copiedNodeFuture: Future[Node] = node.getMetadata.get(AssessmentConstants.MIME_TYPE) match {
         case AssessmentConstants.QUESTIONSET_MIME_TYPE =>
@@ -57,6 +59,7 @@ object CopyManager {
   }
 
   def validateCopyQuestionReq(request: Request, node: Node) = {
+    println("validateCopyQuestionReq")
     val visibility = node.getMetadata.getOrDefault(AssessmentConstants.VISIBILITY, AssessmentConstants.VISIBILITY_PARENT).asInstanceOf[String]
     if (StringUtils.equalsIgnoreCase(visibility, AssessmentConstants.VISIBILITY_PARENT)) {
       throw new ClientException(AssessmentConstants.ERR_INVALID_REQUEST, "Question With Visibility Parent Cannot Be Copied Individually!")
@@ -64,6 +67,7 @@ object CopyManager {
   }
 
   def validateExistingNode(request: Request, node: Node) = {
+    println("validateExistingNode")
     val requestObjectType = request.getObjectType
     val nodeObjectType = node.getObjectType
     if (!StringUtils.equalsIgnoreCase(requestObjectType, nodeObjectType)) {
@@ -72,6 +76,7 @@ object CopyManager {
   }
 
   def copyQuestionSet(originNode: Node, request: Request)(implicit ex: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+    println("copyQuestionSet")
     val copyType = request.getRequest.get(AssessmentConstants.COPY_TYPE).asInstanceOf[String]
     copyNode(originNode, request).map(node => {
       val req = new Request(request)
@@ -89,6 +94,7 @@ object CopyManager {
 
 
   def copyNode(node: Node, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+    println("copyNode")
     val copyCreateReq: Future[Request] = getCopyRequest(node, request)
     copyCreateReq.map(req => {
       DataNode.create(req).map(copiedNode => {
@@ -98,11 +104,13 @@ object CopyManager {
   }
 
   def updateHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef], copyType: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+    println("updateHierarchy")
     prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request).map(req => {
       val hierarchyRequest = new Request(request)
       hierarchyRequest.putAll(req)
       hierarchyRequest.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
       hierarchyRequest.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
+      println("HERE AS WELL")
       UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => {
         if (!ResponseHandler.checkError(response)) node else {
           TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is : " + response)
@@ -113,6 +121,7 @@ object CopyManager {
   }
 
   def prepareHierarchyRequest(originHierarchy: util.Map[String, AnyRef], originNode: Node, node: Node, copyType: String, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[util.Map[String, AnyRef]] = {
+    println("prepareHierarchyRequest")
     val children: util.List[util.Map[String, AnyRef]] = originHierarchy.get("children").asInstanceOf[util.List[util.Map[String, AnyRef]]]
     if (null != children && !children.isEmpty) {
       val nodesModified = new util.HashMap[String, AnyRef]()
@@ -142,22 +151,28 @@ object CopyManager {
   }
 
   def getExternalData(identifiers: List[String], request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[util.Map[String, AnyRef]] = {
+    println("getExternalData")
     val req = new Request(request)
     req.getContext().putAll(Map("objectType" -> "Question", "schemaName" -> "question").asJava)
     req.put("identifiers", identifiers)
     val result = new util.HashMap[String, AnyRef]()
     val externalProps = DefinitionNode.getExternalProps(req.getContext.getOrDefault("graph_id", "domain").asInstanceOf[String], req.getContext.getOrDefault("version", "1.0").asInstanceOf[String], req.getContext.getOrDefault("schemaName", "question").asInstanceOf[String])
     val externalPropsResponse = oec.graphService.readExternalProps(req, externalProps)
+
     externalPropsResponse.map(response => {
+      println("EXTERNAL DATA: "+response)
       identifiers.map(id => {
         val externalData = Optional.ofNullable(response.get(id).asInstanceOf[util.Map[String, AnyRef]]).orElse(new util.HashMap[String, AnyRef]())
+        println("ID: "+ id +"externalData: "+externalData )
         result.put(id, externalData)
       })
+      println("REACHED HERE 888")
       result
     })
   }
 
   def populateHierarchyRequest(children: util.List[util.Map[String, AnyRef]], nodesModified: util.HashMap[String, AnyRef], hierarchy: util.HashMap[String, AnyRef], parentId: String, copyType: String, request: Request, idMap: java.util.Map[String, String])(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
+    println("populateHierarchyRequest")
     if (null != children && !children.isEmpty) {
       children.asScala.toList.foreach(child => {
         val id = if ("Parent".equalsIgnoreCase(child.get(AssessmentConstants.VISIBILITY).asInstanceOf[String])) {
@@ -197,6 +212,7 @@ object CopyManager {
   }
 
   def updateShallowHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef])(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+    println("updateShallowHierarchy")
     val childrenHierarchy = originHierarchy.get("children").asInstanceOf[util.List[util.Map[String, AnyRef]]]
     val req = new Request(request)
     req.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
@@ -212,7 +228,10 @@ object CopyManager {
   }
 
   def getCopyRequest(node: Node, request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Request] = {
-    val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, new util.ArrayList(), node.getObjectType.toLowerCase.replace("image", ""), AssessmentConstants.SCHEMA_VERSION)
+    println("getCopyRequest")
+    val val1 = node.getObjectType.toLowerCase.replace("image", "")
+    println(val1)
+    val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, new util.ArrayList(), val1, AssessmentConstants.SCHEMA_VERSION)
     val requestMap = request.getRequest
     requestMap.remove(AssessmentConstants.MODE)
     requestMap.remove(AssessmentConstants.COPY_SCHEME).asInstanceOf[String]
@@ -241,7 +260,7 @@ object CopyManager {
     readReq.setContext(request.getContext)
     readReq.put("identifier", node.getIdentifier)
     readReq.put("fields", externalProps.asJava)
-    val maxWaitTime: FiniteDuration = Duration(5, TimeUnit.SECONDS)
+    val maxWaitTime: FiniteDuration = Duration(3600, TimeUnit.SECONDS)
     Await.result(
       DataNode.read(readReq).map(node => {
         val metadata: util.Map[String, AnyRef] = NodeUtil.serialize(node, externalProps.asJava, node.getObjectType.toLowerCase.replace("image", ""), request.getContext.get("version").asInstanceOf[String])
@@ -256,6 +275,7 @@ object CopyManager {
   }
 
   def getOriginData(metadata: util.Map[String, AnyRef], copyType: String): java.util.Map[String, AnyRef] = {
+    println("getOriginData")
     new java.util.HashMap[String, AnyRef]() {
       {
         putAll(originMetadataKeys.asScala.filter(key => metadata.containsKey(key)).map(key => key -> metadata.get(key)).toMap.asJava)
@@ -265,12 +285,14 @@ object CopyManager {
   }
 
   def validateRequest(request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Unit = {
+    println("validateRequest")
     val keysNotPresent = AssessmentConstants.REQUIRED_KEYS.filter(key => emptyCheckFilter(request.getRequest.getOrDefault(key, "")))
     if (keysNotPresent.nonEmpty)
       throw new ClientException(AssessmentConstants.ERR_INVALID_REQUEST, "Please provide valid value for " + keysNotPresent)
   }
 
   def validateShallowCopyReq(node: Node, request: Request) = {
+    println("validateShallowCopyReq")
     val copyType: String = request.getRequest.get("copyType").asInstanceOf[String]
     if (StringUtils.equalsIgnoreCase("shallow", copyType) && !StringUtils.equalsIgnoreCase("Live", node.getMetadata.get("status").asInstanceOf[String]))
       throw new ClientException(AssessmentConstants.ERR_INVALID_REQUEST, "QuestionSet with status " + node.getMetadata.get(AssessmentConstants.STATUS).asInstanceOf[String].toLowerCase + " cannot be partially (shallow) copied.")
@@ -285,6 +307,7 @@ object CopyManager {
   }
 
   def cleanUpCopiedData(metadata: util.Map[String, AnyRef], copyType: String): util.Map[String, AnyRef] = {
+    println("cleanUpCopiedData")
     if (StringUtils.equalsIgnoreCase(AssessmentConstants.COPY_TYPE_SHALLOW, copyType)) {
       metadata.keySet().removeAll(metadataNotTobeCopied.asScala.toList.filter(str => !str.contains("dial")).asJava)
     } else metadata.keySet().removeAll(metadataNotTobeCopied)

@@ -4,11 +4,9 @@ import org.mortbay.util.StringUtil
 import org.sunbird.common.dto.{Request, Response, ResponseParams}
 import org.sunbird.graph.dac.model.Node
 import org.sunbird.utils.AssessmentConstants
-import org.sunbird.common.exception.{ResourceNotFoundException, ResponseCode}
-import org.sunbird.graph.service.common.{DACErrorCodeConstants, DACErrorMessageConstants}
+import org.sunbird.common.exception.{ResponseCode}
 
 import java.util
-import java.util.concurrent.CompletionException
 
 trait copyTrait {
 
@@ -42,6 +40,16 @@ trait copyTrait {
 		request
 	}
 
+	def getInvalidQuestionSetCopyRequest(): Request = {
+		val request = getQuestionSetRequest()
+		request.putAll(new util.HashMap[String, AnyRef]() {
+			{
+				put("name", "NewRootNode")
+			}
+		})
+		request
+	}
+
 	private def getNode(objectType: String, identifier: String, primaryCategory: String, visibility: String, name: String, id: Long,
 						status: String): Node = {
 		val node = new Node("domain", "DATA_NODE", objectType)
@@ -54,7 +62,7 @@ trait copyTrait {
 			{
 				put("code", "xyz")
 				put("allowSkip", "Yes")
-				put("containsUserData", "No") //put("channel" , "in.ekstep") put("language", Array("English"))
+				put("containsUserData", "No")
 				put("showHints", "No")
 				put("mimeType", {
 					if (StringUtil.endsWithIgnoreCase(objectType, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)) {
@@ -117,8 +125,8 @@ trait copyTrait {
 		node
 	}
 
-	def getQuestionNode(): Node ={
-		val node = getNode("Question","do_5678","slider",AssessmentConstants.VISIBILITY_PARENT,"Question1",0,"Draft")
+	def getQuestionNode(): Node = {
+		val node = getNode("Question", "do_5678", "slider", AssessmentConstants.VISIBILITY_PARENT, "Question1", 0, "Draft")
 		node.setExternalData(new util.HashMap[String, AnyRef]() {
 			{
 				put("answer", "This is Answer.")
@@ -154,8 +162,8 @@ trait copyTrait {
 		response.put("instructions", "This is the instruction for this QuestionSet")
 		response.put("outcomeDeclaration", "This is the outcomeDeclaration for this QuestionSet")
 		response.put("hierarchy", "{\"code\":\"ExistingRootNode\",\"allowSkip\":\"Yes\",\"containsUserData\":\"No\"," +
-		  "\"channel\":\"{{all}}\",\"language\":[\"English\"],\"showHints\":\"No\",\"mimeType\":\"application/vnd" + "" + ".sunbird" + "" +
-		  ".questionset\",\"createdOn\":\"2022-03-16T14:35:11.040+0530\",\"objectType\":\"QuestionSet\"," +
+		  "\"channel\":\"{{all}}\",\"language\":[\"English\"],\"showHints\":\"No\",\"mimeType\":\"application/vnd" + "" + ".sunbird" + ""
+		  + ".questionset\",\"createdOn\":\"2022-03-16T14:35:11.040+0530\",\"objectType\":\"QuestionSet\"," +
 		  "\"primaryCategory\":\"Observation\",\"contentDisposition\":\"inline\",\"contentEncoding\":\"gzip\"," +
 		  "\"lastUpdatedOn\":\"2022-03-16T14:38:51.287+0530\",\"generateDIALCodes\":\"No\",\"showSolutions\":\"No\"," +
 		  "\"allowAnonymousAccess\":\"Yes\",\"identifier\":\"do_1234\"," + "\"lastStatusChangedOn\":\"2022-03-16T14:35:11.040+0530\"," +
@@ -182,8 +190,9 @@ trait copyTrait {
 		response.put("objectMetadata", new util.HashMap[String, AnyRef]() {
 			{
 				put("config", "{}")
-				put("schema", "{\"properties\":{\"audience\":{\"type\":\"array\",\"items\":{\"type\":\"string\"," + "\"enum\":[\"Education" +
-				  " Official\",\"School leaders (HMs)\",\"Administrator\",\"Teachers\",\"Students\"," + "\"Parents\",\"Others\"]}}}}")
+				put("schema", "{\"properties\":{\"audience\":{\"type\":\"array\",\"items\":{\"type\":\"string\"," +
+				  "\"enum\":[\"Education" + " Official\",\"School leaders (HMs)\",\"Administrator\",\"Teachers\",\"Students\"," +
+				  "\"Parents\",\"Others\"]}}}}")
 			}
 		})
 		response
@@ -201,12 +210,11 @@ trait copyTrait {
 		response
 	}
 
-	def getUpsertNode(): Node ={
+	def getUpsertNode(): Node = {
 		val node = getNewRootNode()
 		node.setExternalData(new util.HashMap[String, AnyRef]() {
 			{
-				put("hierarchy", "{\\\"identifier\\\":\\\"do_9876\\\"," +
-				  "\\\"children\\\":[{\\\"parent\\\":\\\"do_9876\\\"," +
+				put("hierarchy", "{\\\"identifier\\\":\\\"do_9876\\\"," + "\\\"children\\\":[{\\\"parent\\\":\\\"do_9876\\\"," +
 				  "\\\"code\\\":\\\"b65f36d1-a243-4043-9df7-da14a2dd83b9\\\",\\\"channel\\\":\\\"{{channel_id}}\\\"," +
 				  "\\\"language\\\":[\\\"English\\\"],\\\"mimeType\\\":\\\"application/vnd.sunbird.question\\\"," +
 				  "\\\"createdOn\\\":\\\"2022-03-23T15:45:28.620+0530\\\",\\\"objectType\\\":\\\"Question\\\"," +
@@ -215,8 +223,8 @@ trait copyTrait {
 				  "\\\"showSolutions\\\":\\\"No\\\",\\\"allowAnonymousAccess\\\":\\\"Yes\\\"," +
 				  "\\\"identifier\\\":\\\"do_11350066609045504013\\\",\\\"lastStatusChangedOn\\\":\\\"2022-03-23T15:45:28.621+0530\\\"," +
 				  "\\\"visibility\\\":\\\"Parent\\\",\\\"showTimer\\\":\\\"No\\\",\\\"index\\\":1,\\\"languageCode\\\":[\\\"en\\\"]," +
-				  "\\\"version\\\":1,\\\"versionKey\\\":\\\"1648030746815\\\",\\\"showFeedback\\\":\\\"No\\\",\\\"license\\\":\\\"CC BY " +
-				  "4.0\\\",\\\"depth\\\":1,\\\"compatibilityLevel\\\":4,\\\"name\\\":\\\"Q1\\\",\\\"status\\\":\\\"Draft\\\"}]}")
+				  "\\\"version\\\":1,\\\"versionKey\\\":\\\"1648030746815\\\",\\\"showFeedback\\\":\\\"No\\\",\\\"license\\\":\\\"CC BY "
+				  + "4.0\\\",\\\"depth\\\":1,\\\"compatibilityLevel\\\":4,\\\"name\\\":\\\"Q1\\\",\\\"status\\\":\\\"Draft\\\"}]}")
 			}
 		})
 		node

@@ -1,7 +1,7 @@
 package org.sunbird.utils
 
 object AssessmentConstants {
-  val REQUIRED_KEYS: List[String] = List("createdBy"/*, "createdFor"*/)
+  val REQUIRED_KEYS: List[String] = List("createdBy", "createdFor")
   val ERR_INVALID_REQUEST: String = "ERR_INVALID_REQUEST"
   val ERR_INVALID_OBJECT_TYPE: String = "ERR_INVALID_OBJECT_TYPE"
   val COPY_SCHEME: String = "copyScheme"

@@ -27,7 +27,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         testUnknownOperation(Props(new QuestionSetActor()), getQuestionSetRequest())
     }
 
-    it should "return success response for 'createQuestionSet'" ignore {
+    it should "return success response for 'createQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -57,7 +57,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'readQuestionSet'" ignore {
+    it should "return success response for 'readQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -77,7 +77,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
     }
 
 
-    it should "return client error response for 'readQuestionSet' if visibility is 'Private'" ignore {
+    it should "return client error response for 'readQuestionSet' if visibility is 'Private'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -97,7 +97,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert(response.getResponseCode == ResponseCode.CLIENT_ERROR)
     }
 
-    it should "return success response for 'readPrivateQuestionSet'" ignore {
+    it should "return success response for 'readPrivateQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB)
@@ -118,7 +118,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return client error for 'readPrivateQuestionSet' if channel is 'blank'" ignore {
+    it should "return client error for 'readPrivateQuestionSet' if channel is 'blank'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         val request = getQuestionSetRequest()
@@ -131,7 +131,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert(response.getParams.getErrmsg == "Please Provide Channel!")
     }
 
-    it should "return client error for 'readPrivateQuestionSet' if channel is mismatched" ignore {
+    it should "return client error for 'readPrivateQuestionSet' if channel is mismatched" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB)
@@ -154,7 +154,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert(response.getParams.getErrmsg == "Channel id is not matched")
     }
 
-    it should "return success response for 'updateQuestionSet'" ignore {
+    it should "return success response for 'updateQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -186,7 +186,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'reviewQuestionSet'" ignore {
+    it should "return success response for 'reviewQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -222,7 +222,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
     }
 
     it should "return success response for 'retireQuestionSet" +
-        "'" ignore {
+        "'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -250,7 +250,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'publishQuestionSet" ignore {
+    it should "return success response for 'publishQuestionSet" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         val kfClient = mock[KafkaClient]
@@ -287,7 +287,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'addQuestion'" ignore {
+    it should "return success response for 'addQuestion'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -320,7 +320,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'removeQuestion'" ignore {
+    it should "return success response for 'removeQuestion'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -353,7 +353,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return error response for 'updateHierarchyQuestionSet'" ignore {
+    it should "return error response for 'updateHierarchyQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val request = getInvalidUpdateHierarchyReq()
         request.getContext.put("rootId", "do_123")
@@ -363,7 +363,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
     }
 
 
-    it should "return success response for 'updateHierarchyQuestionSet'" ignore {
+    it should "return success response for 'updateHierarchyQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -383,7 +383,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
     }
 
 
-    it should "return success response for 'rejectQuestionSet'" ignore {
+    it should "return success response for 'rejectQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -419,7 +419,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "send events to kafka topic" ignore {
+    it should "send events to kafka topic" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val kfClient = mock[KafkaClient]
         val hUtil = mock[HttpUtil]
@@ -449,7 +449,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert(response.get("processId") != null)
     }
 
-    it should "return success response for 'systemUpdateQuestionSet'" ignore {
+    it should "return success response for 'systemUpdateQuestionSet'" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -485,7 +485,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'systemUpdateQuestionSet' with image Node" ignore {
+    it should "return success response for 'systemUpdateQuestionSet' with image Node" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -549,7 +549,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         (graphDB.getNodeByUniqueId(_: String, _: String, _: Boolean, _: Request)).expects("domain", "do_9876", false, *).returns(Future(getNewRootNode())).anyNumberOfTimes()
         (graphDB.getNodeByUniqueId(_: String, _: String, _: Boolean, _: Request)).expects("domain", "do_9876.img", false, *).returns(Future(getNewRootNode())).anyNumberOfTimes()
         (graphDB.getNodeByUniqueId(_: String, _: String, _: Boolean, _: Request)).expects("domain", *, false, *).returns(Future(getQuestionNode())).anyNumberOfTimes()
-        inSequence { //DB Mocks
+        inSequence {
             (graphDB.readExternalProps(_: Request, _: List[String])).expects(*, *).returns(Future(getObjectMetaDataResponse1()))
             (graphDB.readExternalProps(_: Request, _: List[String])).expects(*, *).returns(Future(getExternalPropsResponseWithData()))
             (graphDB.readExternalProps(_: Request, _: List[String])).expects(*, *).returns(Future(getObjectMetaDataResponse1())).anyNumberOfTimes()
@@ -565,14 +565,19 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
             (graphDB.updateExternalProps(_: Request)).expects(*).returns(Future(getSuccessfulResponse())).anyNumberOfTimes
         }
         val request = getQuestionSetCopyRequest()
-        val createdFor = new util.ArrayList[String]()
-        createdFor.add("One")
         request.putAll(mapAsJavaMap(Map("identifier" -> "do_1234", "mode" -> "", "copyType"-> "deep")))
         request.setOperation("copyQuestionSet")
-        println("REQUEST: " + request)
         val response = callActor(request, Props(new QuestionSetActor()))
-        println(response)
         assert("successful".equals(response.getParams.getStatus))
+    }
+
+    it should "return error response for 'copyQuestionSet' when createdFor & createdBy is missing" in {
+        implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
+        val request = getInvalidQuestionSetCopyRequest()
+        request.putAll(mapAsJavaMap(Map("identifier" -> "do_1234", "mode" -> "", "copyType"-> "deep")))
+        request.setOperation("copyQuestionSet")
+        val response = callActor(request, Props(new QuestionSetActor()))
+        assert("failed".equals(response.getParams.getStatus))
     }
 
     private def getQuestionSetRequest(): Request = {

@@ -296,7 +296,6 @@ object CopyManager {
     val copyType: String = request.getRequest.get("copyType").asInstanceOf[String]
     if (StringUtils.equalsIgnoreCase("shallow", copyType) && !StringUtils.equalsIgnoreCase("Live", node.getMetadata.get("status").asInstanceOf[String]))
       throw new ClientException(AssessmentConstants.ERR_INVALID_REQUEST, "QuestionSet with status " + node.getMetadata.get(AssessmentConstants.STATUS).asInstanceOf[String].toLowerCase + " cannot be partially (shallow) copied.")
-    //TODO: check if need to throw client exception for combination of copyType=shallow and mode=edit
   }
 
   def emptyCheckFilter(key: AnyRef): Boolean = key match {

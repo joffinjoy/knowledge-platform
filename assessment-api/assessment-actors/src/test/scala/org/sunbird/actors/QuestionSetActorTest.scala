@@ -573,7 +573,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
 
     it should "return error response for 'copyQuestionSet' when createdFor & createdBy is missing" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
-        val request = getInvalidQuestionSetCopyRequest()
+        val request = getInvalidQuestionCopyRequest()
         request.putAll(mapAsJavaMap(Map("identifier" -> "do_1234", "mode" -> "", "copyType"-> "deep")))
         request.setOperation("copyQuestionSet")
         val response = callActor(request, Props(new QuestionSetActor()))

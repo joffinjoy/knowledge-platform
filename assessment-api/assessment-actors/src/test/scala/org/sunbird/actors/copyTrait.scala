@@ -50,6 +50,46 @@ trait copyTrait {
 		request
 	}
 
+	def getInvalidQuestionCopyRequest(): Request = {
+		val request = getQuestionRequest()
+		request.putAll(new util.HashMap[String, AnyRef]() {
+			{
+				put("name", "NewQuestion")
+			}
+		})
+		request
+	}
+
+	private def getQuestionRequest(): Request = {
+		val request = new Request()
+		request.setContext(new java.util.HashMap[String, AnyRef]() {
+			{
+				put("graph_id", "domain")
+				put("version", "1.0")
+				put("objectType", "Question")
+				put("schemaName", "question")
+			}
+		})
+		request.setObjectType("Question")
+		request
+	}
+
+	def getQuestionCopyRequest(): Request = {
+		val request = getQuestionRequest()
+		request.putAll(new util.HashMap[String, AnyRef]() {
+			{
+				put("createdBy", "Shikshalokam")
+				put("createdFor", new util.ArrayList[String]() {
+					{
+						add("Shikshalokam")
+					}
+				})
+				put("name", "NewQuestion")
+			}
+		})
+		request
+	}
+
 	private def getNode(objectType: String, identifier: String, primaryCategory: String, visibility: String, name: String, id: Long,
 						status: String): Node = {
 		val node = new Node("domain", "DATA_NODE", objectType)
@@ -61,9 +101,9 @@ trait copyTrait {
 		node.setMetadata(new util.HashMap[String, AnyRef]() {
 			{
 				put("code", "xyz")
-				put("allowSkip", "Yes")
-				put("containsUserData", "No")
-				put("showHints", "No")
+				//put("allowSkip", "Yes")
+				//put("containsUserData", "No")
+				//put("showHints", "No")
 				put("mimeType", {
 					if (StringUtil.endsWithIgnoreCase(objectType, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)) {
 						AssessmentConstants.QUESTIONSET_MIME_TYPE
@@ -77,26 +117,25 @@ trait copyTrait {
 				put("contentDisposition", "inline")
 				put("contentEncoding", "gzip")
 				put("lastUpdatedOn", "2022-03-16T14:38:51.287+0530")
-				put("generateDIALCodes", "No")
+				//put("generateDIALCodes", "No")
 				put("showSolutions", "No")
 				put("allowAnonymousAccess", "Yes")
 				put("identifier", identifier)
 				put("lastStatusChangedOn", "2022-03-16T14:35:11.040+0530")
-				put("requiresSubmit", "No")
+				//put("requiresSubmit", "No")
 				put("visibility", visibility)
 				put("showTimer", "No")
-				put("childNodes", Array("do_5678"))
-				put("setType", "materialised")
+				//put("setType", "materialised")
 				put("version", 1.asInstanceOf[Number])
 				put("showFeedback", "No")
 				put("versionKey", "1234")
 				put("license", "CC BY 4.0")
-				put("depth", 0.asInstanceOf[Number])
+				//put("depth", 0.asInstanceOf[Number])
 				put("compatibilityLevel", 5.asInstanceOf[Number])
-				put("allowBranching", "No")
-				put("navigationMode", "non-linear")
+				//put("allowBranching", "No")
+				//put("navigationMode", "non-linear")
 				put("name", name)
-				put("shuffle", true.asInstanceOf[AnyRef])
+				//put("shuffle", true.asInstanceOf[AnyRef])
 				put("status", status)
 			}
 		})
@@ -125,14 +164,35 @@ trait copyTrait {
 		node
 	}
 
+	def getExistingQuestionNode(): Node = {
+		val node = getNode("Question", "do_1234", "Slider", AssessmentConstants.VISIBILITY_DEFAULT, "ExistingQuestionNode", 1234,
+			"Live")
+		node
+	}
+
 	def getQuestionNode(): Node = {
-		val node = getNode("Question", "do_5678", "slider", AssessmentConstants.VISIBILITY_PARENT, "Question1", 0, "Draft")
+		val node = getNode("Question", "do_5678", "Slider", AssessmentConstants.VISIBILITY_PARENT, "Question1", 0, "Draft")
 		node.setExternalData(new util.HashMap[String, AnyRef]() {
 			{
 				put("answer", "This is Answer.")
 				put("body", "This is Body.")
 			}
 		})
+		node
+	}
+
+	def getNewQuestionNode(): Node = {
+		val node = getNode("Question", "do_5678", "Slider", AssessmentConstants.VISIBILITY_DEFAULT, "NewQuestion", 0, "Draft")
+		node.setExternalData(new util.HashMap[String, AnyRef]() {
+			{
+				put("answer", "This is Answer.")
+				put("body", "This is Body.")
+			}
+		})
+		node.getMetadata.put("origin", "do_1234")
+		node.getMetadata.put("originData", "{\\\"name\\\":\\\"Q2\\\",\\\"copyType\\\":\\\"deep\\\",\\\"license\\\":\\\"CC BY 4.0\\\"}")
+		node.getMetadata.put("createdFor", Array("ShikshaLokam"))
+		node.getMetadata.put("createdBy", "ShikshaLokam")
 		node
 	}
 
@@ -205,6 +265,19 @@ trait copyTrait {
 				put("config", "{}")
 				put("schema", "{\"properties\":{\"interactionTypes\":{\"type\":\"array\",\"items\":{\"type\":\"string\"," +
 				  "\"enum\":[\"slider\"]}}}}")
+			}
+		})
+		response
+	}
+
+	def getReadPropsResponseForQuestion(): Response = {
+		val response = getSuccessfulResponse()
+		response.put("answer", "This is Answer 2")
+		response.put("body", "This is Body 2")
+		response.put("objectMetadata", new util.HashMap[String, AnyRef]() {
+			{
+				put("config", "{}")
+				put("schema", "{\"properties\":{\"interactionTypes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"slider\"]}}}}")
 			}
 		})
 		response

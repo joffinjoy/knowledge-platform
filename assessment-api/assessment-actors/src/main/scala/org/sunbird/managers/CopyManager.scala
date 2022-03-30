@@ -13,7 +13,7 @@ import org.sunbird.graph.nodes.DataNode
 import org.sunbird.graph.schema.DefinitionNode
 import org.sunbird.graph.utils.{NodeUtil, ScalaJsonUtils}
 import org.sunbird.telemetry.logger.TelemetryManager
-import org.sunbird.utils.AssessmentConstants
+import org.sunbird.utils.{AssessmentConstants, HierarchyConstants}
 
 import java.util
 import java.util.concurrent.{CompletionException, TimeUnit}
@@ -97,12 +97,33 @@ object CopyManager {
     }).flatMap(f => f)
   }
 
+
+  def handleBranchingLogic(nodesModified: util.HashMap[String, AnyRef]) = {
+    val idSet = nodesModified.keySet().asScala.toList
+    val idMap = new util.HashMap[String, AnyRef]()
+    idSet.map(id => {
+      val nodeMetaData = nodesModified.getOrDefault(id, new util.HashMap()).asInstanceOf[util.Map[String, AnyRef]].getOrDefault(
+        AssessmentConstants.METADATA, new util.HashMap()).asInstanceOf[util.Map[String, AnyRef]]
+      val containsBL = nodeMetaData.containsKey(AssessmentConstants.BRANCHING_LOGIC)
+      idMap.put(id, new util.HashMap[String, AnyRef]() {
+        {
+          put(AssessmentConstants.CONTAINS_BL, containsBL.asInstanceOf[AnyRef])
+          put(AssessmentConstants.COPY_OF, nodeMetaData.get(AssessmentConstants.COPY_OF).asInstanceOf[String])
+        }
+      })
+      println("HELLO")
+    })
+    println("HELLO")
+  }
+
   def updateHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef], copyType: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
     prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request).map(req => {
       val hierarchyRequest = new Request(request)
       hierarchyRequest.putAll(req)
       hierarchyRequest.getContext.put(AssessmentConstants.SCHEMA_NAME, AssessmentConstants.QUESTIONSET_SCHEMA_NAME)
       hierarchyRequest.getContext.put(AssessmentConstants.VERSION, AssessmentConstants.SCHEMA_VERSION)
+      val nodesModified: java.util.HashMap[String, AnyRef] = hierarchyRequest.getRequest.get(HierarchyConstants.NODES_MODIFIED).asInstanceOf[java.util.HashMap[String, AnyRef]]
+      val newNodesModified = handleBranchingLogic(nodesModified)
       UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => {
         if (!ResponseHandler.checkError(response)) node else {
           TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is : " + response)
@@ -167,6 +188,7 @@ object CopyManager {
               put(AssessmentConstants.METADATA, cleanUpCopiedData(new util.HashMap[String, AnyRef]() {
                 {
                   putAll(child)
+                  put("copyOf", child.getOrDefault(AssessmentConstants.IDENTIFIER,""))
                   put(AssessmentConstants.CHILDREN, new util.ArrayList())
                   internalHierarchyProps.map(key => remove(key))
                 }

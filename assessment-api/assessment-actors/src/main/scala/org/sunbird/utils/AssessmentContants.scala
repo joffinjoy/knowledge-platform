@@ -44,5 +44,5 @@ object AssessmentConstants {
   val TARGET: String = "target"
   val PRE_CONDITION: String = "preCondition"
   val SOURCE: String = "source"
-
+  val PRE_CONDITION_VAR : String = "var"
 }

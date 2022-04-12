@@ -24,7 +24,7 @@ import java.util.{Optional, UUID}
 import scala.collection.JavaConversions.{asScalaBuffer, mapAsScalaMap}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, future}
 import scala.util.Success
 
 object CopyManager {
@@ -219,35 +219,29 @@ object CopyManager {
     prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request).map(req => {
       val hierarchyRequest = new Request(request)
       hierarchyRequest.putAll(req)
-      val nodesModified: java.util.HashMap[String, AnyRef] = hierarchyRequest.getRequest.get(HierarchyConstants.NODES_MODIFIED)
-        .asInstanceOf[java.util.HashMap[String, AnyRef]]
+      val nodesModified: java.util.HashMap[String, AnyRef] = hierarchyRequest.getRequest.get(HierarchyConstants.NODES_MODIFIED).asInstanceOf[java.util.HashMap[String, AnyRef]]
       val nodeBLRecord = generateNodeBLRecord(nodesModified)
-      val newUpdateRequest = JsonUtils.deserialize(ScalaJsonUtils.serialize(hierarchyRequest), classOf[Request])
-      println("BEFORE FIRST UPDATE HIERARCHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY")
-      UpdateHierarchyManager.updateHierarchy(hierarchyRequest).map(response => {
-        if (!ResponseHandler.checkError(response)) {
-          println("AFTER FIRST UPDATE HIERARCHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY")
-          response
-        } else {
-          TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is "
-            + s": " + response)
+      val originalRequest = JsonUtils.deserialize(ScalaJsonUtils.serialize(hierarchyRequest), classOf[Request])
+      val BLExists = nodeBLRecord.exists(BLRecord => BLRecord._2.asInstanceOf[util.HashMap[String, AnyRef]].get(AssessmentConstants.CONTAINS_BL) == true)
+      val (firstUpdateRequest, secondUpdateRequest) = if (BLExists) (hierarchyRequest, JsonUtils.deserialize(ScalaJsonUtils.serialize(hierarchyRequest), classOf[Request])) else (originalRequest, new Request())
+      UpdateHierarchyManager.updateHierarchy(firstUpdateRequest).map(response => {
+        if (!ResponseHandler.checkError(response)) response
+        else {
+          TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is: " + response)
           throw new ServerException("ERR_QUESTIONSET_COPY", "Something Went Wrong, Please Try Again")
         }
-      }).map(response =>{
-        val identifiers = response.getResult.get(AssessmentConstants.IDENTIFIERS).asInstanceOf[util.Map[String, String]]
-        hierarchyRequestModifier(newUpdateRequest, nodeBLRecord, identifiers)
-        println("BEFORE SECOND UPDATE HIERARCHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY")
-        UpdateHierarchyManager.updateHierarchy(newUpdateRequest).map(response_ => {
-          if (!ResponseHandler.checkError(response_)) {
-            println("AFTER SECOND UPDATE HIERARCHYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY")
-            node
-          } else {
-            TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is "
-              + s": " + response)
-            throw new ServerException("ERR_QUESTIONSET_COPY", "Something Went Wrong, Please Try Again")
-          }
-        })
-      }).flatMap(f=>f)
+      }).map(response => {
+        if (BLExists) {
+          hierarchyRequestModifier(secondUpdateRequest, nodeBLRecord, response.getResult.get(AssessmentConstants.IDENTIFIERS).asInstanceOf[util.Map[String, String]])
+          UpdateHierarchyManager.updateHierarchy(secondUpdateRequest).map(response_ => {
+            if (!ResponseHandler.checkError(response_)) node
+            else {
+              TelemetryManager.info(s"Update Hierarchy Failed For Copy Question Set Having Identifier: ${node.getIdentifier} | Response is: " + response)
+              throw new ServerException("ERR_QUESTIONSET_COPY", "Something Went Wrong, Please Try Again")
+            }
+          })
+        } else Future(node)
+      }).flatMap(f => f)
     }).flatMap(f => f)
   }
 
@@ -306,7 +300,7 @@ object CopyManager {
               put(AssessmentConstants.METADATA, cleanUpCopiedData(new util.HashMap[String, AnyRef]() {
                 {
                   putAll(child)
-                  put("copyOf", child.getOrDefault(AssessmentConstants.IDENTIFIER,""))
+                  put(AssessmentConstants.COPY_OF, child.getOrDefault(AssessmentConstants.IDENTIFIER,""))
                   put(AssessmentConstants.CHILDREN, new util.ArrayList())
                   internalHierarchyProps.map(key => remove(key))
                 }

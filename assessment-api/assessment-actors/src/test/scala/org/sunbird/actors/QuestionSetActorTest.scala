@@ -539,7 +539,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("successful".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'copyQuestionSet' (Deep)" ignore {
+    it should "return success response for 'copyQuestionSet' (Deep)" in {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()

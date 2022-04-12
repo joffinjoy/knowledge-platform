@@ -4,9 +4,12 @@ import org.mortbay.util.StringUtil
 import org.sunbird.common.dto.{Request, Response, ResponseParams}
 import org.sunbird.graph.dac.model.Node
 import org.sunbird.utils.AssessmentConstants
-import org.sunbird.common.exception.{ResponseCode}
+import org.sunbird.common.exception.ResponseCode
 
 import java.util
+import scala.collection.JavaConversions.mapAsJavaMap
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.collection.mutable
 
 trait copyTrait {
 
@@ -489,5 +492,118 @@ trait copyTrait {
 		response.setParams(responseParams)
 		response.setResponseCode(ResponseCode.RESOURCE_NOT_FOUND)
 		response
+	}
+
+	private def generateStaticBranchingLogic(): util.HashMap[String, AnyRef] = {
+		new util.HashMap[String, AnyRef]() {
+			{
+				put("do_11351041198373273619", new util.HashMap[String, AnyRef]() {
+					put("target", new util.ArrayList[String]() {
+						{
+							add("do_113510411984044032111")
+						}
+					})
+					put("preCondition", new util.HashMap[String, AnyRef]())
+					put("source", new util.ArrayList[String]())
+				})
+				put("do_113510411984044032111", new util.HashMap[String, AnyRef]() {
+					put("target", new util.ArrayList[String]())
+					put("preCondition", new util.HashMap[String, AnyRef]() {
+						{
+							put("and", new util.ArrayList[util.HashMap[String, AnyRef]]() {
+								add(new util.HashMap[String, AnyRef]() {
+									put("eq", new util.ArrayList[AnyRef]() {
+										{
+											add(new util.HashMap[String, String]() {
+												put("var", "do_11351041198373273619" + ".response1.value")
+												put("type", "responseDeclaration")
+											})
+											add("0")
+										}
+									})
+								})
+							})
+						}
+					})
+					put("source", new util.ArrayList[String]() {
+						{
+							add("do_11351041198373273619")
+						}
+					})
+				})
+			}
+		}
+	}
+
+	def generateNodesModified(identifier: String, withBranchingLogic: Boolean): util.HashMap[String, AnyRef] = {
+		val nodesModified = new util.HashMap[String, AnyRef]()
+		nodesModified.put(identifier, new util.HashMap[String, AnyRef]() {
+			{
+				put("setDefaultValue", false.asInstanceOf[AnyRef])
+				put("metadata", new util.HashMap[String, AnyRef]() {
+					{
+						putAll((getNode("QuestionSet", "do_5678", "Observation", AssessmentConstants.VISIBILITY_PARENT, "Observation", 0,
+							"Draft").getMetadata))
+						put("copyOf", "do_113510411984478208113")
+						if (withBranchingLogic) put("branchingLogic", generateStaticBranchingLogic)
+					}
+				})
+				put("root", false.asInstanceOf[AnyRef])
+				put("isNew", (!withBranchingLogic).asInstanceOf[AnyRef])
+				put("objectType", "QuestionSet")
+			}
+		})
+		nodesModified
+	}
+
+	def generateNodeBLRecord(): util.HashMap[String, AnyRef] = {
+		val nodeBLRecord = new util.HashMap[String, AnyRef]()
+		nodeBLRecord.put("afa2bef1-b5db-45d9-b0d7-aeea757906c3", new util.HashMap[String, AnyRef]() {
+			{
+				put("containsBL", true.asInstanceOf[AnyRef])
+				put("branchingLogic", generateStaticBranchingLogic())
+				put("copyOf", "do_113510411984478208113")
+			}
+		})
+		nodeBLRecord
+	}
+
+	def generateIdentifiers(): util.Map[String, String] = {
+		val idMap: mutable.Map[String, String] = mutable.Map()
+		idMap += ("afa2bef1-b5db-45d9-b0d7-aeea757906c3" -> "do_11351201604857856013")
+		mapAsJavaMap(idMap)
+	}
+
+	def generateUpdateRequest(withBranchingLogic: Boolean, identifier: String): Request = {
+		val request = getQuestionSetRequest()
+		request.put(AssessmentConstants.NODES_MODIFIED, generateNodesModified(identifier, withBranchingLogic))
+		request.put(AssessmentConstants.HIERARCHY, new util.HashMap[String, AnyRef]() {
+			{
+				put("do_11351201402236108811", new util.HashMap[String, AnyRef]() {
+					{
+						put(AssessmentConstants.CHILDREN, new util.ArrayList[String]() {
+							{
+								add(identifier)
+							}
+						})
+						put(AssessmentConstants.PRIMARY_CATEGORY, "Observation")
+						put(AssessmentConstants.ROOT, true.asInstanceOf[AnyRef])
+					}
+				})
+				put(identifier, new util.HashMap[String, AnyRef]() {
+					{
+						put(AssessmentConstants.CHILDREN, new util.ArrayList[String]() {
+							{
+								add("do_11351041198373273619")
+								add("do_113510411984044032111")
+							}
+						})
+						put(AssessmentConstants.PRIMARY_CATEGORY, "Observation")
+						put(AssessmentConstants.ROOT, false.asInstanceOf[AnyRef])
+					}
+				})
+			}
+		})
+		request
 	}
 }

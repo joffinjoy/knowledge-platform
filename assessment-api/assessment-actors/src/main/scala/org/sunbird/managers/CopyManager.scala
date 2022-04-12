@@ -179,7 +179,7 @@ object CopyManager {
     oldToNewIdMap
   }
 
-  def hierarchyRequestModifier(request: Request, nodeBLRecord: util.HashMap[String, AnyRef], identifiers: util.Map[String, String]): Unit = {
+  def hierarchyRequestModifier(request: Request, nodeBLRecord: util.HashMap[String, AnyRef], identifiers: util.Map[String, String]) = {
     val nodesModified: java.util.HashMap[String, AnyRef] = request.getRequest.get(HierarchyConstants.NODES_MODIFIED).asInstanceOf[java.util.HashMap[String, AnyRef]]
     val hierarchy: java.util.HashMap[String, AnyRef] = request.getRequest.get(HierarchyConstants.HIERARCHY).asInstanceOf[java.util.HashMap[String, AnyRef]]
     val oldToNewIdMap = generateOldToNewIdMap(nodeBLRecord, identifiers)
@@ -212,10 +212,10 @@ object CopyManager {
         hierarchy.put(identifiers.get(id), nodeHierarchy)
       }
     })
+    request
   }
 
-  def updateHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef], copyType: String)
-                     (implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
+  def updateHierarchy(request: Request, node: Node, originNode: Node, originHierarchy: util.Map[String, AnyRef], copyType: String)(implicit ec: ExecutionContext, oec: OntologyEngineContext): Future[Node] = {
     prepareHierarchyRequest(originHierarchy, originNode, node, copyType, request).map(req => {
       val hierarchyRequest = new Request(request)
       hierarchyRequest.putAll(req)

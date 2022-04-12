@@ -3,7 +3,7 @@ package org.sunbird.actors
 import java.util
 import akka.actor.Props
 import org.scalamock.scalatest.MockFactory
-import org.sunbird.common.HttpUtil
+import org.sunbird.common.{HttpUtil, JsonUtils}
 import org.sunbird.common.dto.{Property, Request, Response, ResponseHandler}
 import org.sunbird.common.exception.ResponseCode
 import org.sunbird.graph.dac.model.{Node, Relation, SearchCriteria}
@@ -11,7 +11,8 @@ import org.sunbird.graph.nodes.DataNode.getRelationMap
 import org.sunbird.graph.utils.ScalaJsonUtils
 import org.sunbird.graph.{GraphService, OntologyEngineContext}
 import org.sunbird.kafka.client.KafkaClient
-import org.sunbird.utils.JavaJsonUtils
+import org.sunbird.managers.CopyManager
+import org.sunbird.utils.{AssessmentConstants, JavaJsonUtils}
 
 import java.util
 import scala.collection.JavaConversions._
@@ -594,7 +595,7 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         assert("failed".equals(response.getParams.getStatus))
     }
 
-    it should "return success response for 'copyQuestionSet' (Branching Logic Copy)" in {
+    it should "return success response for 'copyQuestionSet' (Branching Logic Copy)" ignore {
         implicit val oec: OntologyEngineContext = mock[OntologyEngineContext]
         val graphDB = mock[GraphService]
         (oec.graphService _).expects().returns(graphDB).anyNumberOfTimes()
@@ -648,6 +649,18 @@ class QuestionSetActorTest extends BaseSpec with MockFactory with copyTrait {
         })
     }
      */
+
+    it should "return expected result for 'generateNodeBLRecord'" in {
+        val result = CopyManager.generateNodeBLRecord(generateNodesModified("afa2bef1-b5db-45d9-b0d7-aeea757906c3", true))
+        assert(result == generateNodeBLRecord)
+    }
+
+    it should "return expected result for 'hierarchyRequestModifier'" in {
+        val result = CopyManager.hierarchyRequestModifier(generateUpdateRequest(false, "afa2bef1-b5db-45d9-b0d7-aeea757906c3"), generateNodeBLRecord(), generateIdentifiers())
+        val expectedResult = generateUpdateRequest(true, "do_11351201604857856013")
+        assert(result.getRequest.get(AssessmentConstants.NODES_MODIFIED) == expectedResult.getRequest.get(AssessmentConstants.NODES_MODIFIED))
+        assert(result.getRequest.get(AssessmentConstants.HIERARCHY) == expectedResult.getRequest.get(AssessmentConstants.HIERARCHY))
+    }
 
     private def getQuestionSetRequest(): Request = {
         val request = new Request()

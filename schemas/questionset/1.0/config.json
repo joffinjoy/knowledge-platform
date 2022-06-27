@@ -75,6 +75,9 @@
       },
       "outcomeDeclaration": {
         "type": "string"
+      },
+      "reviewerComments": {
+        "type": "string"
       }
     },
     "primaryKey": [

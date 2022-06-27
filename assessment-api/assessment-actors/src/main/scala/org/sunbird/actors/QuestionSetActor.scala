@@ -1,22 +1,21 @@
 package org.sunbird.actors
 
-import java.util
-
-import javax.inject.Inject
 import org.apache.commons.collections4.CollectionUtils
 import org.apache.commons.lang3.StringUtils
 import org.sunbird.`object`.importer.{ImportConfig, ImportManager}
 import org.sunbird.actor.core.BaseActor
 import org.sunbird.cache.impl.RedisCache
-import org.sunbird.common.{DateUtils, Platform}
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
+import org.sunbird.common.{DateUtils, Platform}
 import org.sunbird.graph.OntologyEngineContext
-import org.sunbird.graph.nodes.DataNode
 import org.sunbird.graph.dac.model.Node
+import org.sunbird.graph.nodes.DataNode
 import org.sunbird.managers.HierarchyManager.hierarchyPrefix
-import org.sunbird.managers.{AssessmentManager, CopyManager, HierarchyManager, UpdateHierarchyManager}
+import org.sunbird.managers._
 import org.sunbird.utils.RequestUtil
 
+import java.util
+import javax.inject.Inject
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -42,6 +41,7 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 		case "importQuestionSet" => importQuestionSet(request)
 		case "systemUpdateQuestionSet" => systemUpdate(request)
 		case "copyQuestionSet" => copy(request)
+		case "addCommentQuestionSet" => addComment(request)
 		case _ => ERROR(request.getOperation)
 	}
 
@@ -165,5 +165,10 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 	def copy(request: Request): Future[Response] ={
 		RequestUtil.restrictProperties(request)
 		CopyManager.copy(request)
+	}
+
+	def addComment(request: Request): Future[Response] = {
+		RequestUtil.restrictProperties(request)
+		CommentManager.addComment(request)
 	}
 }

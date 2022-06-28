@@ -173,11 +173,13 @@ class QuestionSetController @Inject()(@Named(ActorNames.QUESTION_SET_ACTOR) ques
 	def addComment(identifier: String) = Action.async { implicit request =>
 		val headers = commonHeaders()
 		val body = requestBody()
+		println("BOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOODY "+body)
 		val questionSet = body.getOrDefault("questionset", new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
 		questionSet.putAll(headers)
 		questionSet.putAll(Map("identifier" -> identifier).asJava)
 		val questionSetRequest = getRequest(questionSet, headers, QuestionSetOperations.addCommentQuestionSet.toString)
 		setRequestContext(questionSetRequest, version, objectType, schemaName)
+		questionSetRequest.getContext.put("identifier", identifier)
 		getResult(ApiId.ADD_COMMENT_QUESTION_SET, questionSetActor, questionSetRequest)
 	}
 }

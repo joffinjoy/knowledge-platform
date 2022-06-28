@@ -26,18 +26,10 @@ object CommentManager {
 
 	def addComment(request: Request)(implicit ec: ExecutionContext, oec: OntologyEngineContext ):Future[Response]={
 		//validateRequest(request)
-		DataNode.read(request).map(node =>{
-			//validateExistingNode(request, node)
-			//val updatedNode = hierarchyAddComment(node, request)
-			val response = ResponseHandler.OK()
-			response.putAll(Map("identifier" -> node.getIdentifier.replace(".img", ""), "versionKey" -> node.getMetadata.get("versionKey")).asJava)
-			Future(response)
-		}).flatMap(f => f) recoverWith { case e: CompletionException => throw e.getCause }
-	}
-
-
-	def hierarchyAddComment(node: Node, request: Request): Node ={
-
+		println(request)
+		DataNode.update(request).map(node => {
+			ResponseHandler.OK.putAll(Map("identifier" -> node.getIdentifier.replace(".img", ""), "versionKey" -> node.getMetadata.get("versionKey")).asJava)
+		})
 	}
 
 }

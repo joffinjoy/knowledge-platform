@@ -168,7 +168,14 @@ class QuestionSetActor @Inject()(implicit oec: OntologyEngineContext) extends Ba
 	}
 
 	def addComment(request: Request): Future[Response] = {
+		/*
 		RequestUtil.restrictProperties(request)
+		request.getRequest.put("identifier", request.getContext.get("identifier"))
 		CommentManager.addComment(request)
+
+		 */
+		RequestUtil.restrictProperties(request)
+		request.getRequest.put("identifier", request.getContext.get("identifier"))
+		AssessmentManager.getValidatedNodeForUpdate(request, "ERR_QUESTION_SET_UPDATE").flatMap(_ => AssessmentManager.updateNode(request))
 	}
 }
